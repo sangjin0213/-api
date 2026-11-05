@@ -1,0 +1,13 @@
+# 인증키 등 비밀값이 들어 있는 환경변수 파일(깃허브에 올리지 않음)
+.env
+.env.local
+.env.*.local
+
+# Node.js 설치 폴더와 로그
+node_modules/
+npm-debug.log*
+
+# 운영체제·편집기가 만드는 파일
+.DS_Store
+Thumbs.db
+.vscode/

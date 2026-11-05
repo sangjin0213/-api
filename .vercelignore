@@ -1,0 +1,7 @@
+# 인증키 파일은 업로드하지 않음(Vercel 환경변수 설정에 넣기)
+.env
+.env.local
+.env.*.local
+
+# 로컬 테스트 전용 서버(배포에서는 api/qnet.js가 대신함)
+server.js

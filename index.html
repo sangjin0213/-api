@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<!-- 문서 언어를 한국어로 지정 -->
+<html lang="ko">
+<head>
+  <!-- 한글이 깨지지 않도록 UTF-8 인코딩 사용 -->
+  <meta charset="UTF-8" />
+  <!-- 휴대폰 화면 폭에 맞추는 반응형 설정 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- 브라우저 탭에 표시될 제목 -->
+  <title>기술자격증 알리미</title>
+  <!-- 한글 웹폰트(Noto Sans KR) 불러오기 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet" />
+  <!-- 스타일 파일 연결 -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- 상단 헤더 영역 -->
+  <header class="header">
+    <!-- 서비스 이름 -->
+    <h1 class="header__title">기술자격증 알리미</h1>
+    <!-- 서비스 한 줄 소개 -->
+    <p class="header__sub">재학 중인 학과로 취득 가능한 국가기술자격을 찾아보세요</p>
+  </header>
+
+  <!-- 본문 영역 -->
+  <main class="main">
+    <!-- 학과 검색 영역 -->
+    <section class="search" aria-label="학과 검색">
+      <!-- 검색 폼(엔터 또는 버튼으로 제출) -->
+      <form id="searchForm" class="search__form" autocomplete="off">
+        <!-- 화면 낭독기용 라벨 -->
+        <label for="majorInput" class="sr-only">학과명</label>
+        <!-- 학과명 입력창 -->
+        <input id="majorInput" class="search__input" type="search" list="majorSuggest" placeholder="예: 컴퓨터, 전기, 건축" required />
+        <!-- 학과명 자동완성 목록(페이지가 열릴 때 학과 API로 채움) -->
+        <datalist id="majorSuggest"></datalist>
+        <!-- 검색 버튼 -->
+        <button type="submit" class="search__btn">검색</button>
+      </form>
+      <!-- 진행 상태·오류 메시지 표시 영역 -->
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+      <!-- 검색된 학과 목록(학과 선택 버튼들) -->
+      <div id="majorList" class="major-list"></div>
+    </section>
+
+    <!-- 자격증 카드 영역 -->
+    <section class="result" aria-label="관련 기술자격증">
+      <!-- 선택한 학과 이름과 개수 제목 -->
+      <h2 id="resultTitle" class="result__title" hidden></h2>
+      <!-- 개설 대학·기준연도 안내 문구 -->
+      <p id="resultNote" class="note result__note" hidden></p>
+      <!-- 자격증 카드가 들어갈 그리드 -->
+      <div id="cardGrid" class="card-grid"></div>
+    </section>
+  </main>
+
+  <!-- 세부정보 모달(카드 클릭 시 표시) -->
+  <div id="modal" class="modal" hidden>
+    <!-- 모달 바깥 어두운 배경(클릭하면 닫힘) -->
+    <div class="modal__backdrop" data-close></div>
+    <!-- 모달 본문 상자 -->
+    <div class="modal__box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <!-- 닫기 버튼 -->
+      <button class="modal__close" type="button" aria-label="닫기" data-close>×</button>
+      <!-- 자격증 이름 -->
+      <h2 id="modalTitle" class="modal__title"></h2>
+      <!-- 세부정보 내용 -->
+      <div id="modalBody" class="modal__body"></div>
+    </div>
+  </div>
+
+  <!-- 하단 출처 표기 -->
+  <footer class="footer">자료 출처: 공공데이터포털 · 한국산업인력공단</footer>
+
+  <!-- 자바스크립트 파일 연결 -->
+  <script src="script.js"></script>
+</body>
+</html>
