@@ -10,6 +10,10 @@ const CONFIG = {
   FEE_PATH: "/InquiryTestInformationNTQSVC/getFeeList",
   // ③ 연도별 회별 합격률
   PASS_PATH: "/InquiryQualPassRateSVC/getList",
+  // 전국 대학 목록(api/univ.js) — 입력한 대학이 실제 있는 대학인지 확인용
+  UNIV_URL: "/api/univ",
+  // AI 비슷한 학과 추천(api/ai.js) — 목록에 없는 대학·학과를 ① 학과 정보의 대학·학과로 연결
+  AI_URL: "/api/ai",
   // 한 번에 받아올 개수(학과 692개, 기능사 합격률 약 1500행이라 넉넉히)
   NUM_OF_ROWS: 2000,
   // 학생이 바로 응시할 수 있는 등급 코드: 30 기사, 31 산업기사, 40 기능사
@@ -58,6 +62,8 @@ const GRADE_ORDER = { 기사: 1, 산업기사: 2, 기능사: 3 };
 // ===== 화면 요소 가져오기 =====
 const $form = document.getElementById("searchForm");          // 검색 폼
 const $input = document.getElementById("majorInput");         // 학과 입력창
+const $univInput = document.getElementById("univInput");      // 대학 입력창
+const $univSuggest = document.getElementById("univSuggest");  // 대학 자동완성 목록
 const $btn = $form.querySelector("button");                   // 검색 버튼
 const $suggest = document.getElementById("majorSuggest");     // 자동완성 목록
 const $status = document.getElementById("status");            // 상태 메시지
@@ -73,6 +79,7 @@ const $modalBody = document.getElementById("modalBody");      // 모달 내용
 let majorRows = null;      // 학과 목록(대학별)
 let certMap = null;        // 종목코드 → 자격증 정보
 let passYear = "";         // 합격률 기준연도
+let univNames = null;      // 전국 대학 이름 목록
 
 // ===== 공통 도우미 함수 =====
 
@@ -101,6 +108,16 @@ function fmtRange(a, b) {
 // 학과명 뒤의 괄호 설명을 지워 짧게 보여주기 (예: 간호(학)(과ㆍ전공) → 간호)
 function shortName(name) {
   return name.replace(/\(.*?\)/g, "").trim() || name;
+}
+
+// 대학명 비교용으로 정리(공백·괄호 설명 제거) 예: "한국대학교 (본교)" → "한국대학교"
+function normUniv(name) {
+  return String(name ?? "").replace(/\(.*?\)/g, "").replace(/\s/g, "");
+}
+
+// 학과명 비교용으로 정리(괄호·공백·끝의 학과/학부/전공/과 제거) 예: "컴퓨터공학과" → "컴퓨터공학"
+function majorCore(name) {
+  return shortName(String(name ?? "")).replace(/\s/g, "").replace(/(학과|학부|전공|과)$/, "");
 }
 
 // API 호출 후 XML 응답을 { items, totalCount }로 바꾸기
@@ -143,6 +160,15 @@ async function callApiAll(apiPath, params = {}) {
 async function loadMajors() {
   if (!majorRows) majorRows = await callApiAll(CONFIG.MAJOR_PATH);
   return majorRows;
+}
+
+// 전국 대학 목록 불러오기(처음 한 번만)
+async function loadUnivs() {
+  if (univNames) return univNames;
+  const res = await fetch(CONFIG.UNIV_URL);
+  if (!res.ok) throw new Error((await res.text()).slice(0, 200) || `대학 목록 오류 (${res.status})`);
+  univNames = (await res.json()).names || [];
+  return univNames;
 }
 
 // 합격률 API로 기사·산업기사·기능사 종목 목록과 연간 합격률 만들기(처음 한 번만)
@@ -191,10 +217,16 @@ function rate(sum) {
   }
 })();
 
+// 페이지가 열리면 전국 대학 목록으로 대학 자동완성 채우기(실패해도 학과 검색은 계속 사용 가능)
+loadUnivs()
+  .then((names) => { $univSuggest.innerHTML = names.map((n) => `<option value="${esc(n)}"></option>`).join(""); })
+  .catch((err) => console.warn("대학 목록을 불러오지 못했어요:", err.message));
+
 // 검색 폼 제출 시 실행
 $form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const keyword = $input.value.trim().replace(/\s/g, "");
+  const univ = $univInput.value.trim();
   if (!keyword) return;
   // 이전 결과 지우기
   $majorList.innerHTML = "";
@@ -202,6 +234,8 @@ $form.addEventListener("submit", async (e) => {
   $btn.disabled = true;
   setStatus("학과 정보를 찾는 중...");
   try {
+    // 대학을 입력했으면 대학+학과로 찾기
+    if (univ) return await searchByUniv(univ, keyword);
     const rows = await loadMajors();
     // 학과명별로 개설 대학 모으기
     const groups = new Map();
@@ -255,6 +289,84 @@ function renderMajorChips(groups) {
   if (groups.size === 1) $majorList.querySelector(".major-chip").click();
 }
 
+// ===== 대학 + 학과로 찾기 =====
+
+// 1) 전국 대학 목록에 없으면 "대학을 찾을 수 없습니다." 팝업
+// 2) ① 학과 정보에 그 대학·학과가 있으면 바로 표시
+// 3) 없으면 AI가 ① 학과 정보 안에서 비슷한 대학·학과 4개를 골라 표시
+async function searchByUniv(univ, keyword) {
+  const [rows, names] = await Promise.all([loadMajors(), loadUnivs()]);
+  const u = normUniv(univ);
+  const qnetRows = rows.filter((r) => normUniv(r.univnm) === u);
+  const official = names.find((n) => normUniv(n) === u) || qnetRows[0]?.univnm;
+  if (!official) {
+    setStatus("");
+    showAlert("대학을 찾을 수 없습니다.");
+    return;
+  }
+
+  // 그 대학에 입력한 학과가 등록돼 있는지 확인
+  const key = majorCore(keyword) || keyword;
+  const groups = new Map();
+  for (const r of qnetRows) {
+    const core = majorCore(r.udeptnm);
+    if (!(core.includes(key) || (core.length >= 2 && key.includes(core)))) continue;
+    if (!groups.has(r.udeptnm)) groups.set(r.udeptnm, []);
+    groups.get(r.udeptnm).push(r.univnm);
+  }
+  if (groups.size > 0) {
+    setStatus(`${official}에서 ${groups.size}개 학과를 찾았어요. 학과를 선택하세요.`);
+    renderMajorChips(groups);
+    return;
+  }
+
+  // 등록되지 않은 대학·학과 → AI로 비슷한 학과 찾기
+  setStatus(`${official} ${keyword}은(는) 등록되지 않아 AI가 비슷한 학과를 찾는 중... (최대 1분)`);
+  // 후보: ① 학과 정보의 (대학, 학과) 중복 제거
+  const seen = new Set();
+  const candidates = [];
+  for (const r of rows) {
+    const id = `${r.univnm}|${r.udeptnm}`;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    candidates.push({ univ: r.univnm, major: shortName(r.udeptnm), full: r.udeptnm });
+  }
+  const res = await fetch(CONFIG.AI_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ univ: official, major: keyword, candidates: candidates.map(({ univ, major }) => ({ univ, major })) }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `AI 응답 오류 (${res.status})`);
+  setStatus(`${official} ${keyword}와(과) 커리큘럼·진로가 비슷한 학과 ${data.picks.length}곳이에요. 선택하면 관련 자격증을 보여줘요.`);
+  renderAiChips(data.picks.map((p) => ({ ...candidates[p.index], reason: p.reason })), `${official} ${keyword}`);
+}
+
+// AI가 고른 대학·학과 버튼 그리기(첫 번째는 바로 선택)
+function renderAiChips(picks, userLabel) {
+  for (const p of picks) {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "major-chip major-chip--ai";
+    chip.title = `${p.univ} ${p.full}`;
+    chip.innerHTML = `${esc(p.univ)} · ${esc(p.major)}<span class="major-chip__reason">${esc(p.reason)}</span>`;
+    chip.onclick = () => {
+      $majorList.querySelectorAll(".major-chip").forEach((c) => c.classList.remove("is-active"));
+      chip.classList.add("is-active");
+      showCertsFor(p.full, [p.univ], `AI 추천(${userLabel}와 비슷한 학과): ${p.reason}`);
+    };
+    $majorList.appendChild(chip);
+  }
+  $majorList.querySelector(".major-chip")?.click();
+}
+
+// 간단한 알림 팝업(세부정보 모달 재사용)
+function showAlert(msg) {
+  $modalTitle.textContent = "알림";
+  $modalBody.innerHTML = `<p>${esc(msg)}</p>`;
+  showModal();
+}
+
 // ===== 2단계: 자격증 카드 표시 =====
 
 // 이전 결과 지우기
@@ -276,13 +388,15 @@ function matchCerts(majorName, certs) {
 }
 
 // 선택한 학과의 자격증 카드 보여주기
-async function showCertsFor(majorName, univs) {
+async function showCertsFor(majorName, univs, extraNote = "") {
   clearResult();
+  const prevStatus = $status.textContent;
   setStatus("자격증 정보를 불러오는 중... (처음 한 번은 몇 초 걸려요)");
   try {
     const list = matchCerts(majorName, await loadCerts());
-    setStatus("");
-    renderCards(majorName, univs, list);
+    // AI 추천일 때는 안내 문구를 남겨 두기
+    setStatus(extraNote ? prevStatus : "");
+    renderCards(majorName, univs, list, extraNote);
   } catch (err) {
     console.error(err);
     showError(err);
@@ -290,13 +404,13 @@ async function showCertsFor(majorName, univs) {
 }
 
 // 자격증 카드 목록 그리기
-function renderCards(majorName, univs, list) {
+function renderCards(majorName, univs, list, extraNote = "") {
   $resultTitle.hidden = false;
   $resultTitle.textContent = `${shortName(majorName)} 관련 기술자격증 ${list.length}개`;
-  // 개설 대학과 추천 방식 안내
+  // 개설 대학과 추천 방식 안내(AI 추천이면 추천 이유를 앞에 붙임)
   $resultNote.hidden = false;
   const univText = univs.length > 5 ? `${univs.slice(0, 5).join(", ")} 외 ${univs.length - 5}곳` : univs.join(", ");
-  $resultNote.textContent = `개설 대학: ${univText} · 학과명 키워드로 고른 추천 목록이며, 합격률은 ${passYear}년 기준이에요.`;
+  $resultNote.textContent = `${extraNote ? extraNote + " · " : ""}개설 대학: ${univText} · 학과명 키워드로 고른 추천 목록이며, 합격률은 ${passYear}년 기준이에요.`;
   // 관련 자격증이 없을 때 안내
   if (list.length === 0) {
     const isLicense = LICENSE_MAJORS.some((m) => majorName.includes(m));

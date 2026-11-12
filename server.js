@@ -24,6 +24,9 @@ if (!process.env.SERVICE_KEY) {
 
 // 배포 환경과 같은 q-net 중계 함수 불러오기
 const qnet = require("./api/qnet");
+// 전국 대학 목록 중계 함수와 AI 학과 연결 함수
+const univ = require("./api/univ");
+const ai = require("./api/ai");
 
 // 서버 포트 번호(환경변수 PORT가 있으면 그 값 사용)
 const PORT = process.env.PORT || 8080;
@@ -35,6 +38,9 @@ const FILES = { "index.html": "text/html; charset=utf-8", "style.css": "text/css
 http.createServer((req, res) => {
   // /qnet/... 으로 오면 중계 함수에 맡기기
   if (req.url.startsWith("/qnet/")) return qnet(req, res);
+  // /api/univ → 전국 대학 목록, /api/ai → AI 비슷한 학과 추천
+  if (req.url.split("?")[0] === "/api/univ") return univ(req, res);
+  if (req.url.split("?")[0] === "/api/ai") return ai(req, res);
 
   // 그 외 요청은 같은 폴더의 파일(index.html, style.css, script.js)을 보여주기
   const urlPath = req.url.split("?")[0];

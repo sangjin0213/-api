@@ -125,6 +125,12 @@ body {
 /* 선택된 학과 버튼 강조 */
 .major-chip.is-active { background: var(--primary); border-color: var(--primary); color: #fff; }
 
+/* AI 추천 학과 버튼(대학·학과 + 추천 이유 두 줄) */
+.major-chip--ai { border-radius: var(--radius); text-align: left; max-width: 300px; line-height: 1.4; padding: 8px 14px; }
+
+/* AI 추천 이유 글자 */
+.major-chip__reason { display: block; font-size: 0.78rem; opacity: 0.8; margin-top: 2px; }
+
 /* 결과 제목 */
 .result__title { font-size: 1.15rem; margin: 28px 0 4px; }
 
@@ -235,6 +241,9 @@ body {
 @media (max-width: 600px) {
   /* 헤더 여백 줄이기 */
   .header { padding: 20px 16px 18px; }
+  /* 대학 입력창은 한 줄 전체, 학과 입력창과 버튼은 그 아래 */
+  .search__form { flex-wrap: wrap; }
+  #univInput { flex-basis: 100%; }
   /* 카드를 한 줄에 하나씩 */
   .card-grid { grid-template-columns: 1fr; }
   /* 모달을 화면 아래에 붙여 크게 표시 */

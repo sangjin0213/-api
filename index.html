@@ -30,6 +30,11 @@
     <section class="search" aria-label="학과 검색">
       <!-- 검색 폼(엔터 또는 버튼으로 제출) -->
       <form id="searchForm" class="search__form" autocomplete="off">
+        <!-- 대학명 입력창(선택 입력, 전국 대학 목록으로 확인) -->
+        <label for="univInput" class="sr-only">대학명</label>
+        <input id="univInput" class="search__input" type="search" list="univSuggest" placeholder="대학명 (선택)" />
+        <!-- 대학명 자동완성 목록(페이지가 열릴 때 전국 대학 정보로 채움) -->
+        <datalist id="univSuggest"></datalist>
         <!-- 화면 낭독기용 라벨 -->
         <label for="majorInput" class="sr-only">학과명</label>
         <!-- 학과명 입력창 -->

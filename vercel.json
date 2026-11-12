@@ -1,6 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "regions": ["icn1"],
+  "functions": {
+    "api/ai.js": { "maxDuration": 60 },
+    "api/univ.js": { "maxDuration": 30 }
+  },
   "rewrites": [
     { "source": "/qnet/:path*", "destination": "/api/qnet?path=:path*" }
   ]
