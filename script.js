@@ -446,7 +446,7 @@ function renderCards(majorName, univs, list, extraNote = "") {
 // 카드를 눌렀을 때 시험일정·수수료를 불러와 합격률과 함께 표시
 async function openDetail(cert) {
   $modalTitle.textContent = cert.name;
-  $modalBody.innerHTML = `<p class="note">세부정보를 불러오는 중...</p>`;
+  $modalBody.innerHTML = `<p class="note">세부정보를 불러오는 중<span class="loading-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></p>`;
   showModal();
 
   // 시험일정과 수수료를 동시에 요청(하나가 실패해도 나머지는 표시)

@@ -1,7 +1,9 @@
 /* 색상·간격 등 공통 디자인 값 */
 :root {
-  --bg: #f5f7fb;
+  --bg: #ffffff;
   --surface: #ffffff;
+  --header-bg: #a3d916;
+  --header-text: #1f2a07;
   --text: #1c2333;
   --muted: #5f6b80;
   --line: #e2e7f0;
@@ -12,23 +14,6 @@
   --danger: #c0392b;
   --radius: 14px;
   --shadow: 0 2px 10px rgba(28, 35, 51, 0.06);
-}
-
-/* 다크 모드일 때 색상 바꾸기 */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #12161f;
-    --surface: #1b212d;
-    --text: #e8ecf3;
-    --muted: #9aa5b8;
-    --line: #2c3444;
-    --primary: #6b9bff;
-    --primary-soft: #22304d;
-    --accent-soft: #1d3428;
-    --accent: #6fd39b;
-    --danger: #ff8a7a;
-    --shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-  }
 }
 
 /* 여백·크기 계산을 쉽게 하기 위한 초기화 */
@@ -50,8 +35,8 @@ body {
 
 /* 상단 헤더 배경과 정렬 */
 .header {
-  background: var(--primary);
-  color: #fff;
+  background: var(--header-bg);
+  color: var(--header-text);
   text-align: center;
   padding: 28px 16px 24px;
 }
@@ -233,6 +218,17 @@ body {
 
 /* 안내·빈 결과 문구 */
 .note { color: var(--muted); font-size: 0.9rem; }
+
+/* 로딩 중 점 3개를 하나씩 위로 띄웠다 내리기 */
+.loading-dots span { display: inline-block; animation: dot-bounce 1.2s infinite ease-in-out; }
+.loading-dots span:nth-child(2) { animation-delay: 0.15s; }
+.loading-dots span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes dot-bounce {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-6px); }
+}
+/* 움직임 줄이기 설정을 켠 사용자에게는 애니메이션 끄기 */
+@media (prefers-reduced-motion: reduce) { .loading-dots span { animation: none; } }
 
 /* 하단 출처 */
 .footer { text-align: center; color: var(--muted); font-size: 0.8rem; padding: 16px; }
