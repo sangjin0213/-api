@@ -27,3 +27,7 @@ group by jm_cd;
 alter table public.cert_votes enable row level security;
 revoke all on public.cert_votes       from anon, authenticated;
 revoke all on public.cert_vote_counts from anon, authenticated;
+
+-- 서버(secret 키 = service_role)에는 읽기·쓰기 권한 주기(최근 프로젝트는 자동으로 주지 않을 수 있음)
+grant select, insert, update, delete on public.cert_votes to service_role;
+grant select on public.cert_vote_counts to service_role;
