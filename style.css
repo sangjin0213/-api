@@ -154,6 +154,33 @@ body {
 /* 두 번째 키워드 배지 색상 */
 .tag--green { background: var(--accent-soft); color: var(--accent); }
 
+/* 카드의 좋아요·싫어요 수 배지 */
+.tag--vote { background: #f3f4f7; color: var(--muted); }
+.tag[hidden] { display: none; }
+
+/* 모달의 좋아요/싫어요 버튼 묶음 */
+.vote { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 4px; }
+
+/* 좋아요/싫어요 버튼 */
+.vote__btn {
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+/* 내가 누른 버튼 강조(좋아요는 파랑, 싫어요는 빨강) */
+.vote__btn[aria-pressed="true"] { background: var(--primary); border-color: var(--primary); color: #fff; }
+.vote__btn--down[aria-pressed="true"] { background: var(--danger); border-color: var(--danger); }
+.vote__btn:disabled { opacity: 0.6; cursor: wait; }
+
+/* 투표 오류 문구 */
+.vote__msg { color: var(--danger); font-size: 0.85rem; }
+
 /* 모달 전체(화면 위에 덮기) */
 .modal { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
 

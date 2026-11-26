@@ -14,6 +14,8 @@ const CONFIG = {
   UNIV_URL: "/api/univ",
   // AI 비슷한 학과 추천(api/ai.js) — 목록에 없는 대학·학과를 ① 학과 정보의 대학·학과로 연결
   AI_URL: "/api/ai",
+  // 자격증 좋아요/싫어요(api/vote.js) — 로그인 없이 브라우저당 한 표
+  VOTE_URL: "/api/vote",
   // 한 번에 받아올 개수(학과 692개, 기능사 합격률 약 1500행이라 넉넉히)
   NUM_OF_ROWS: 2000,
   // 학생이 바로 응시할 수 있는 등급 코드: 30 기사, 31 산업기사, 40 기능사
@@ -80,6 +82,7 @@ let majorRows = null;      // 학과 목록(대학별)
 let certMap = null;        // 종목코드 → 자격증 정보
 let passYear = "";         // 합격률 기준연도
 let univNames = null;      // 전국 대학 이름 목록
+const votes = new Map();   // 종목코드 → { likes, dislikes, mine(1 좋아요 / -1 싫어요 / 0 없음) }
 
 // ===== 공통 도우미 함수 =====
 
@@ -434,12 +437,83 @@ function renderCards(majorName, univs, list, extraNote = "") {
       <div class="card__tags">
         <span class="tag">${esc(cert.grade)}</span>
         <span class="tag tag--green">${esc(passText)}</span>
+        <span class="tag tag--vote" hidden></span>
       </div>`;
+    card.dataset.jm = cert.jmCd;
     // 카드 클릭 시 세부정보 열기
     card.onclick = () => openDetail(cert);
     $grid.appendChild(card);
   }
+  // 카드마다 좋아요·싫어요 수 불러와 표시(실패해도 카드는 그대로 사용 가능)
+  loadVotes(list.map((c) => c.jmCd));
 }
+
+// ===== 좋아요/싫어요 =====
+
+// 여러 자격증의 투표 수를 한 번에 불러오기
+async function loadVotes(codes) {
+  if (codes.length === 0) return;
+  try {
+    const res = await fetch(`${CONFIG.VOTE_URL}?jmCd=${codes.join(",")}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || res.status);
+    for (const [jm, v] of Object.entries(data.counts)) { votes.set(jm, v); updateVoteViews(jm); }
+  } catch (err) {
+    console.warn("좋아요 정보를 불러오지 못했어요:", err.message);
+  }
+}
+
+// 카드 배지와 모달 버튼의 숫자·선택 상태를 최신 값으로 바꾸기
+function updateVoteViews(jmCd) {
+  const v = votes.get(jmCd);
+  if (!v) return;
+  const tag = $grid.querySelector(`.card[data-jm="${jmCd}"] .tag--vote`);
+  if (tag) { tag.hidden = false; tag.textContent = `👍 ${v.likes} · 👎 ${v.dislikes}`; }
+  const bar = $modalBody.querySelector(`.vote[data-jm="${jmCd}"]`);
+  if (!bar) return;
+  for (const btn of bar.querySelectorAll(".vote__btn")) {
+    const val = Number(btn.dataset.vote);
+    btn.setAttribute("aria-pressed", String(v.mine === val));
+    btn.querySelector("b").textContent = val === 1 ? v.likes : v.dislikes;
+  }
+}
+
+// 모달 위쪽에 넣을 좋아요/싫어요 버튼
+function voteBarHtml(jmCd) {
+  return `<div class="vote" data-jm="${esc(jmCd)}">
+    <button type="button" class="vote__btn" data-vote="1" aria-pressed="false">👍 좋아요 <b>0</b></button>
+    <button type="button" class="vote__btn vote__btn--down" data-vote="-1" aria-pressed="false">👎 싫어요 <b>0</b></button>
+    <span class="vote__msg note" role="status"></span>
+  </div>`;
+}
+
+// 버튼 클릭: 같은 버튼을 다시 누르면 취소, 다른 버튼을 누르면 바꾸기(한 사람당 한 표)
+$modalBody.addEventListener("click", async (e) => {
+  const btn = e.target.closest(".vote__btn");
+  if (!btn) return;
+  const bar = btn.closest(".vote");
+  const jmCd = bar.dataset.jm;
+  const clicked = Number(btn.dataset.vote);
+  const next = votes.get(jmCd)?.mine === clicked ? 0 : clicked;
+  const $msg = bar.querySelector(".vote__msg");
+  bar.querySelectorAll(".vote__btn").forEach((b) => (b.disabled = true));
+  $msg.textContent = "";
+  try {
+    const res = await fetch(CONFIG.VOTE_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jmCd, vote: next }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `오류 (${res.status})`);
+    votes.set(jmCd, data.counts[jmCd]);
+    updateVoteViews(jmCd);
+  } catch (err) {
+    $msg.textContent = "반영하지 못했어요: " + err.message;
+  } finally {
+    bar.querySelectorAll(".vote__btn").forEach((b) => (b.disabled = false));
+  }
+});
 
 // ===== 3단계: 세부정보 모달 =====
 
@@ -460,8 +534,9 @@ async function openDetail(cert) {
   const fees = fee.status === "fulfilled" ? fee.value.items : [];
   const info = schedules[0] || fees[0] || {};
 
-  // 기본 정보 표
-  let html = `<h3>기본 정보</h3><div class="table-wrap"><table class="info-table">
+  // 좋아요/싫어요 버튼 + 기본 정보 표
+  let html = voteBarHtml(cert.jmCd);
+  html += `<h3>기본 정보</h3><div class="table-wrap"><table class="info-table">
     <tr><th>등급</th><td>${esc(cert.grade)}</td></tr>
     <tr><th>직무분야</th><td>${esc([info.obligfldnm, info.mdobligfldnm].filter(Boolean).join(" > ") || "-")}</td></tr>
     <tr><th>종목코드</th><td>${esc(cert.jmCd)}</td></tr>
@@ -499,8 +574,10 @@ async function openDetail(cert) {
       <td>${esc(r.passRate)}</td>
     </tr>`).join("")}</tbody></table></div>`;
 
-  // 모달 내용 교체
+  // 모달 내용 교체 후 투표 수 표시(아직 못 불러왔으면 다시 요청)
   $modalBody.innerHTML = html;
+  if (votes.has(cert.jmCd)) updateVoteViews(cert.jmCd);
+  else loadVotes([cert.jmCd]);
 }
 
 // "1차 : 19400, 2차 : 22600" → "필기 19,400원 / 실기 22,600원"

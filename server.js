@@ -27,6 +27,8 @@ const qnet = require("./api/qnet");
 // 전국 대학 목록 중계 함수와 AI 학과 연결 함수
 const univ = require("./api/univ");
 const ai = require("./api/ai");
+// 자격증 좋아요/싫어요 함수(Supabase 저장)
+const vote = require("./api/vote");
 
 // 서버 포트 번호(환경변수 PORT가 있으면 그 값 사용)
 const PORT = process.env.PORT || 8080;
@@ -41,6 +43,8 @@ http.createServer((req, res) => {
   // /api/univ → 전국 대학 목록, /api/ai → AI 비슷한 학과 추천
   if (req.url.split("?")[0] === "/api/univ") return univ(req, res);
   if (req.url.split("?")[0] === "/api/ai") return ai(req, res);
+  // /api/vote → 자격증 좋아요/싫어요
+  if (req.url.split("?")[0] === "/api/vote") return vote(req, res);
 
   // 그 외 요청은 같은 폴더의 파일(index.html, style.css, script.js)을 보여주기
   const urlPath = req.url.split("?")[0];
